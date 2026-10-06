@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Air Quality Visualisation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400&family=Space+Mono&display=swap" rel="stylesheet">
+  <style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400&family=Space+Mono&display=swap');
+
+:root {
+  --bg: #0D0D0D;
+  --text-primary: #F0EDE8;
+  --text-muted: #5A5A5A;
+  --accent-safe: #8A9E8B;
+  --accent-heavy: #9E8A7A;
+  --rule: #2A2A2A;
+  --thread: rgba(240, 237, 232, 0.3);
+  
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --dur: 700ms;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Space Grotesk', sans-serif;
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, p { margin: 0; font-weight: 400; }
+
+.viewport-page {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  min-height: 100vh;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+  display: flex;
+  flex-direction: column;
+}
+
+.viewport-page.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.content {
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 48px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.content.top-aligned {
+  justify-content: flex-start;
+  padding-top: 120px;
+}
+
+/* Typology */
+.t-opening {
+  font-size: clamp(32px, 4.5vw, 56px);
+  font-weight: 400;
+  text-align: center;
+  letter-spacing: -0.01em;
+  width: 100%;
+}
+
+.t-heading {
+  font-size: 32px;
+  letter-spacing: -0.01em;
+  margin-bottom: 48px;
+}
+
+.t-body {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.t-data {
+  font-size: 48px;
+  font-weight: 300;
+  color: var(--text-primary);
+}
+
+.t-mono {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.t-translation {
+  font-size: 20px;
+  margin-top: 12px;
+}
+
+/* Forms & UI */
+.form-group {
+  margin-bottom: 64px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+select {
+  width: 100%;
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--text-primary);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  padding: 16px;
+  cursor: pointer;
+  border-radius: 0;
+  outline: none;
+  transition: border-color var(--dur) var(--ease);
+}
+select:focus, select:hover {
+  border-color: var(--text-muted);
+}
+
+/* Phase 1 Inputs Sequence */
+.q-container {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  align-items: center;
+}
+.q-label {
+  font-size: 20px;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+  display: block;
+  text-align: center;
+}
+
+/* Minimal single input styling */
+.minimal-input {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 15px;
+  padding: 8px 0;
+  width: 100%;
+  outline: none;
+  font-weight: 300;
+  border-bottom: 1px solid #3A3A3A;
+  text-align: center;
+  transition: border-color var(--dur) var(--ease);
+}
+.minimal-input:focus {
+  border-color: var(--text-muted);
+}
+.minimal-input::placeholder {
+  color: var(--text-muted);
+}
+select.minimal-input {
+  appearance: none;
+  cursor: pointer;
+  padding: 8px 0;
+  text-align: center;
+  text-align-last: center;
+}
+
+/* Hide number input spinners */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  appearance: none;
+  margin: 0; 
+}
+input[type=number] {
+  -moz-appearance: textfield; /* Firefox */
+}
+
+/* Styled Options List */
+.styled-options {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-top: 32px;
+}
+.t-option {
+  padding: 12px 0;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  color: var(--text-muted);
+  font-size: 16px;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.t-option:hover {
+  color: var(--text-primary);
+}
+.t-option.active-option {
+  color: #fff;
+  font-weight: 400;
+}
+.t-option.active-option::before {
+  content: '✓ ';
+  color: var(--accent-safe);
+}
+.t-enter-btn {
+  font-family: 'Space Mono', monospace;
+  background: transparent;
+  border: 1px solid var(--text-muted);
+  color: var(--text-primary);
+  padding: 12px 24px;
+  margin-top: 24px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s var(--ease);
+  width: 100%;
+  max-width: 200px;
+}
+.t-enter-btn:hover {
+  background-color: var(--text-primary);
+  color: #000;
+}
+
+/* Phase 3 Receipt Layout */
+.receipt-wrapper {
+  max-width: 1000px;
+  margin: 120px auto 0 auto;
+  padding: 0 48px;
+  font-family: 'Space Mono', monospace;
+  position: relative;
+}
+.receipt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 80px;
+  position: relative;
+}
+.receipt-col {
+  flex: 1;
+  background-color: #FFFFFF;
+  color: #000000;
+  padding: 32px;
+  border: 2px solid #000;
+  outline: 2px solid #000;
+  outline-offset: -8px;
+}
+
+/* Print UI Adjustments */
+.print-action-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.thermal-print-btn {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--text-primary);
+  padding: 16px 24px;
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s var(--ease);
+  width: 100%;
+}
+.thermal-print-btn:hover {
+  background-color: var(--text-primary);
+  color: #000000;
+}
+
+.thermal-message {
+  margin-top: 48px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 24px;
+  line-height: 1.4;
+  color: #C4856A; /* Dull red stark contrast */
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 800ms var(--ease), transform 800ms var(--ease);
+  border-left: 2px solid #C4856A;
+  padding-left: 24px;
+}
+
+.thermal-message.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.receipt-header, .col-header {
+  font-size: 11px;
+  font-family: 'Space Mono', monospace;
+  text-transform: uppercase;
+  color: #000000;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #000000;
+}
+
+.col-header {
+  border-bottom: none;
+  margin-bottom: 48px;
+}
+
+.receipt-section-title {
+  margin-top: 24px;
+  margin-bottom: 12px;
+  color: #000000;
+  font-weight: normal;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+.receipt-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 0;
+  margin-bottom: 24px;
+  font-size: 13px;
+  color: #000000;
+  text-align: left;
+  line-height: 1.2;
+}
+.receipt-row .r-title {
+  color: #555555;
+  margin-bottom: 6px;
+}
+.receipt-row .r-val {
+  margin-bottom: 0;
+  margin-top: 4px;
+}
+.receipt-bar {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  letter-spacing: 3px;
+  display: inline-block;
+  height: 6px;
+  overflow: hidden;
+  line-height: 12px;
+}
+
+.receipt-box-left {
+  margin-top: 64px;
+  background-color: #0F1F10;
+  color: #6B8F6C;
+  padding: 24px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.receipt-box-right {
+  margin-top: 64px;
+  background-color: #1F0F0F;
+  color: #8F6B6B;
+  padding: 24px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.receipt-outro {
+  text-align: center;
+  margin-top: 120px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
+  color: var(--text-primary);
+  opacity: 0;
+  transition: opacity 800ms var(--ease);
+}
+.sources-footer {
+  margin-top: 160px;
+  padding-bottom: 64px;
+  text-align: center;
+  font-size: 10px;
+  color: #3D3D3D;
+  font-family: 'Space Mono', monospace;
+  line-height: 2;
+  opacity: 0;
+  transition: opacity 800ms var(--ease);
+}
+
+</style>
+</head>
+<body>
+
+  <!-- PHASE 1: The Audit -->
+  <div id="phase1" class="viewport-page active">
+    
+    <!-- Title Screen -->
+    <div id="p1-title" class="content">
+    <!-- Title & Input Sequence -->
+    <div id="p1-title-screen" class="content" style="max-width: 1200px;">
+<div class='t-opening' style='margin-bottom: 24px; color: var(--text-primary); text-align: center;'>Air Pollution Privilege Experience</div><div class='t-body' style='text-align: center; margin-bottom: 48px;'>Press Enter to begin</div>
+
+      <div id="q_years" class="q-container" style="opacity:0; display:none; transition: opacity 800ms;">
+        <label class="q-label">How many years have you lived in Delhi?</label>
+        <input type="number" id="input_years" class="minimal-input" min="1" max="50" placeholder="Type and press ↵">
+        <div id="warn_years" style="color: red; font-size: 12px; margin-top: 8px; opacity: 0; transition: opacity 0.3s; pointer-events: none;">oops too old</div>
+      </div>
+
+      <div id="q_outdoors" class="q-container" style="opacity:0; display:none; transition: opacity 800ms;">
+        <label class="q-label">How many hours a day do you spend outdoors?<br><span style="font-size:14px; color:var(--text-muted);">(excluding commute)</span></label>
+        <input type="number" id="input_outdoors" class="minimal-input" min="0" max="24" step="0.5" placeholder="Type and press ↵">
+        <div id="warn_outdoors" style="color: red; font-size: 12px; margin-top: 8px; opacity: 0; transition: opacity 0.3s; pointer-events: none;">there are only 24 hours in a day</div>
+      </div>
+
+      <div id="q_purifier" class="q-container" style="opacity:0; display:none; transition: opacity 800ms;">
+        <label class="q-label">What is the primary air filtration in your home?</label>
+        <div class="styled-options" id="input_home_purifier_options">
+          <div class="t-option" data-value="none">No air purifier</div>
+          <div class="t-option" data-value="budget">Budget purifier</div>
+          <div class="t-option" data-value="mid">Mid-range purifier</div>
+          <div class="t-option" data-value="premium">Premium purifier</div>
+        </div>
+        <input type="hidden" id="input_home_purifier" value="">
+      </div>
+
+      <div id="q_work_purifier" class="q-container" style="opacity:0; display:none; transition: opacity 800ms;">
+        <label class="q-label">What is the primary air filtration in your workspace?</label>
+        <div class="styled-options" id="input_work_purifier_options">
+          <div class="t-option" data-value="none">No filtration</div>
+          <div class="t-option" data-value="budget">Basic purifiers</div>
+          <div class="t-option" data-value="mid">Central air / Mid-range purifiers</div>
+          <div class="t-option" data-value="premium">Sealed premium HEPA</div>
+        </div>
+        <input type="hidden" id="input_work_purifier" value="">
+      </div>
+
+      <div id="q_commute" class="q-container" style="opacity:0; display:none; transition: opacity 800ms;">
+        <label class="q-label">How do you generally commute?</label>
+        <div class="styled-options" id="input_commute_options">
+          <div class="t-option" data-value="ac_car">Personal AC Car</div>
+          <div class="t-option" data-value="metro">Metro / AC Cab</div>
+          <div class="t-option" data-value="auto">Auto / Bus / Two-wheeler</div>
+        </div>
+        <input type="hidden" id="input_commute" value="">
+      </div>
+
+      <div id="q_commute_time" class="q-container" style="opacity:0; display:none; transition: opacity 800ms;">
+        <label class="q-label">How many hours do you spend on commute?</label>
+        <input type="number" id="input_commute_time" class="minimal-input" min="0" max="24" step="0.5" placeholder="Type and press ↵">
+        <div id="warn_commute_time" style="color: red; font-size: 12px; margin-top: 8px; opacity: 0; transition: opacity 0.3s; pointer-events: none;">there are only 24 hours in a day</div>
+      </div>
+
+      <div id="q_worker" class="q-container" style="opacity:0; display:none; transition: opacity 800ms;">
+        <label class="q-label">Who in your daily life do you interact with the most?</label>
+        <div class="styled-options" id="input_worker_options">
+          <div class="t-option" data-value="gig_delivery">The person who delivers your food and groceries</div>
+          <div class="t-option" data-value="house_help">The person who helps run your home</div>
+          <div class="t-option" data-value="security_guard">The person who guards your building</div>
+          <div class="t-option" data-value="street_vendor">The person who sells you things on the street</div>
+        </div>
+        <input type="hidden" id="input_worker" value="">
+        <button id="btn_worker_confirm" class="t-enter-btn" style="opacity:0; display:none;">Confirm (↵)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- PHASE 3: The Receipt -->
+  <div id="phase3" class="viewport-page" style="display: block; visibility: hidden; pointer-events: none; overflow-y: auto;">
+    
+    <div style="max-width: 1400px; margin: 0 auto; width: 100%;">
+    </div>
+
+    <!-- The Receipt -->
+    <div class="receipt-wrapper" id="receipt_section" style="opacity:0; transition: opacity 800ms;">
+      <div class="receipt-grid" id="receipt_grid">
+        <!-- User Receipt -->
+        <div id="user_receipt_container" class="receipt-wrapper-single">
+           <!-- Content injected by JS -->
+        </div>
+
+        <!-- Print Action Side -->
+        <div id="print_action_container" class="print-action-box">
+           <button id="print_btn" class="thermal-print-btn">DOWNLOAD RECEIPT</button>
+           <div id="print_message" class="thermal-message">
+             Thank you for your contribution. This person's lungs have been charged accordingly.
+           </div>
+        </div>
+      </div>
+      
+      <div class="receipt-outro">
+        Clean air was not distributed. It was purchased.
+      </div>
+      
+      <div class="sources-footer">
+        — CPCB / DPCC — historical PM2.5 data<br>
+        — AQLI, University of Chicago EPIC — life expectancy loss<br>
+        — Burnett et al. (2014), Environ Health Perspect — disease risk<br>
+        — Goel et al. (2015), Atmos Environ — commute exposure ratios<br>
+        — SAFAR, IITM — PM2.5 composition, NO₂ data<br>
+        — Fairwork India 2024 — worker income and conditions
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+let appData = {
+  constants: {
+    "ventilation": { "rest_rate_lph": 550, "walking_rate_lph": 900, "cycling_rate_lph": 2400 },
+    "deposition": { "pm25_fraction": 0.27 },
+    "indoor_outdoor": { "indoor_pm25_ratio_no_purifier": 0.50, "indoor_pm25_ratio_hepa_h13": 0.005, "indoor_pm25_ratio_hepa_standard": 0.03, "indoor_pm25_ratio_budget_hepa": 0.10 },
+    "commute_ratios": { "ac_car": 0.50, "metro": 0.80, "auto_bus_tw": 1.25 },
+    "equivalents": { "cigarette_pm25_mg": 12 }
+  },
+  pm25: {
+    "data": [
+      { "year": 2010, "annual_avg": 122 }, { "year": 2011, "annual_avg": 128 }, { "year": 2012, "annual_avg": 131 },
+      { "year": 2013, "annual_avg": 135 }, { "year": 2014, "annual_avg": 139 }, { "year": 2015, "annual_avg": 143 },
+      { "year": 2016, "annual_avg": 136 }, { "year": 2017, "annual_avg": 141 }, { "year": 2018, "annual_avg": 113 },
+      { "year": 2019, "annual_avg": 107 }, { "year": 2020, "annual_avg": 92 }, { "year": 2021, "annual_avg": 108 },
+      { "year": 2022, "annual_avg": 112 }, { "year": 2023, "annual_avg": 109 }, { "year": 2024, "annual_avg": 106 }
+    ]
+  },
+  shield: {
+    "purifier_tiers": [
+      { "id": "budget", "annual_cost_inr": 9000 },
+      { "id": "mid", "annual_cost_inr": 18000 },
+      { "id": "premium", "annual_cost_inr": 52000 }
+    ]
+  },
+  workers: {
+    "personas": [
+      {
+        "id": "gig_delivery",
+        "label": "Gig delivery worker",
+        "receipt_descriptor": "Swiggy / Zomato rider",
+        "commute_pm25_ugm3": 148,
+        "no2_exhaust_ugm3": 92,
+        "indoor_pm25_ugm3": 74,
+        "outdoor_pm25_ugm3": 148,
+        "weighted_daily_exposure_ugm3": 98.4,
+        "cigarette_equivalent_per_day": 4.5,
+        "life_expectancy_loss_years": 12.6,
+        "monthly_income_inr": 18000,
+        "health_insurance": "None",
+        "disease_heart_pct": 27, "disease_stroke_pct": 26, "disease_copd_pct": 24, "disease_lung_cancer_pct": 20,
+        "privilege_rank": "BOTTOM 18%"
+      },
+      {
+        "id": "house_help",
+        "label": "House help",
+        "receipt_descriptor": "Domestic / household worker",
+        "commute_pm25_ugm3": 106,
+        "no2_exhaust_ugm3": null,
+        "indoor_pm25_ugm3": 89,
+        "outdoor_pm25_ugm3": 106,
+        "weighted_daily_exposure_ugm3": 82.1,
+        "cigarette_equivalent_per_day": 3.7,
+        "life_expectancy_loss_years": 10.8,
+        "monthly_income_inr": 12000,
+        "health_insurance": "None",
+        "disease_heart_pct": 25, "disease_stroke_pct": 25, "disease_copd_pct": 22, "disease_lung_cancer_pct": 18,
+        "privilege_rank": "BOTTOM 22%"
+      },
+      {
+        "id": "security_guard",
+        "label": "Security guard",
+        "receipt_descriptor": "Residential / commercial guard",
+        "commute_pm25_ugm3": 112,
+        "no2_exhaust_ugm3": null,
+        "indoor_pm25_ugm3": 95,
+        "outdoor_pm25_ugm3": 112,
+        "weighted_daily_exposure_ugm3": 103.6,
+        "cigarette_equivalent_per_day": 4.7,
+        "life_expectancy_loss_years": 11.2,
+        "monthly_income_inr": 14000,
+        "health_insurance": "Basic ESIC",
+        "disease_heart_pct": 28, "disease_stroke_pct": 27, "disease_copd_pct": 25, "disease_lung_cancer_pct": 21,
+        "privilege_rank": "BOTTOM 20%"
+      },
+      {
+        "id": "street_vendor",
+        "label": "Street vendor",
+        "receipt_descriptor": "Roadside / market vendor",
+        "commute_pm25_ugm3": 138,
+        "no2_exhaust_ugm3": 78,
+        "indoor_pm25_ugm3": null,
+        "outdoor_pm25_ugm3": 138,
+        "weighted_daily_exposure_ugm3": 126.4,
+        "cigarette_equivalent_per_day": 5.7,
+        "life_expectancy_loss_years": 13.1,
+        "monthly_income_inr": 9000,
+        "health_insurance": "None",
+        "disease_heart_pct": 32, "disease_stroke_pct": 31, "disease_copd_pct": 28, "disease_lung_cancer_pct": 24,
+        "privilege_rank": "BOTTOM 25%"
+      }
+    ]
+  }
+};
+
+let state = {
+  user: { cost: 0, pmInhaled: 0, cigs: 0, lifeLost: 0, exposureAvg: 0 },
+  workers: [],
+  workerStats: null
+};
+
+// Start directly since data is statically attached
+function init() {
+  startPhase1();
+}
+
+// 2. Phase 1 Mechanics
+const questions = ['q_years', 'q_outdoors', 'q_purifier', 'q_work_purifier', 'q_commute', 'q_commute_time', 'q_worker'];
+let currentQIndex = 0;
+
+function startPhase1() {
+  setTimeout(() => { showNextQuestion(); }, 100);
+
+  function attemptAdvanceYears() {
+    const el = document.getElementById('input_years');
+    const warn = document.getElementById('warn_years');
+    if (el.value) {
+      if (parseInt(el.value) >= 40) {
+        warn.style.opacity = '1';
+      } else {
+        warn.style.opacity = '0';
+        advanceQuestion();
+      }
+    }
+  }
+
+  function attemptAdvanceOutdoors() {
+    const el = document.getElementById('input_outdoors');
+    const warn = document.getElementById('warn_outdoors');
+    if (el.value) {
+      if (parseFloat(el.value) > 24) {
+        warn.style.opacity = '1';
+      } else {
+        warn.style.opacity = '0';
+        advanceQuestion();
+      }
+    }
+  }
+
+  function attemptAdvanceCommuteTime() {
+    const el = document.getElementById('input_commute_time');
+    const warn = document.getElementById('warn_commute_time');
+    if (el.value) {
+      if (parseFloat(el.value) > 24) {
+        warn.style.opacity = '1';
+      } else {
+        warn.style.opacity = '0';
+        advanceQuestion();
+      }
+    }
+  }
+
+  function handleEnter(e) {
+    if((e.key === 'Enter' || e.keyCode === 13) && e.target.value) {
+      e.target.blur(); 
+      if (e.target.id === 'input_years') attemptAdvanceYears();
+      else if (e.target.id === 'input_outdoors') attemptAdvanceOutdoors();
+      else if (e.target.id === 'input_commute_time') attemptAdvanceCommuteTime();
+      else advanceQuestion();
+    }
+  }
+
+  document.getElementById('input_years').addEventListener('keydown', handleEnter);
+  document.getElementById('input_outdoors').addEventListener('keydown', handleEnter);
+  document.getElementById('input_commute_time').addEventListener('keydown', handleEnter);
+  
+  document.getElementById('input_years').addEventListener('blur', (e) => {
+    if (e.target.value && currentQIndex === 0) {
+      if (parseInt(e.target.value) >= 40) document.getElementById('warn_years').style.opacity = '1';
+      else { document.getElementById('warn_years').style.opacity = '0'; advanceQuestion(); }
+    }
+  });
+  document.getElementById('input_outdoors').addEventListener('blur', (e) => {
+    if (e.target.value && currentQIndex === 1) {
+      if (parseFloat(e.target.value) > 24) document.getElementById('warn_outdoors').style.opacity = '1';
+      else { document.getElementById('warn_outdoors').style.opacity = '0'; advanceQuestion(); }
+    }
+  });
+
+  document.getElementById('input_commute_time').addEventListener('blur', (e) => {
+    if (e.target.value && currentQIndex === 5) {
+      if (parseFloat(e.target.value) > 24) document.getElementById('warn_commute_time').style.opacity = '1';
+      else { document.getElementById('warn_commute_time').style.opacity = '0'; advanceQuestion(); }
+    }
+  });
+
+  document.querySelectorAll('#input_home_purifier_options .t-option').forEach(opt => {
+    opt.addEventListener('click', (e) => {
+      document.getElementById('input_home_purifier').value = e.target.getAttribute('data-value');
+      advanceQuestion();
+    });
+  });
+
+  document.querySelectorAll('#input_work_purifier_options .t-option').forEach(opt => {
+    opt.addEventListener('click', (e) => {
+      document.getElementById('input_work_purifier').value = e.target.getAttribute('data-value');
+      advanceQuestion();
+    });
+  });
+
+  document.querySelectorAll('#input_commute_options .t-option').forEach(opt => {
+    opt.addEventListener('click', (e) => {
+      document.getElementById('input_commute').value = e.target.getAttribute('data-value');
+      advanceQuestion();
+    });
+  });
+
+  let selectedWorkers = [];
+  const workerConfirmBtn = document.getElementById('btn_worker_confirm');
+  
+  workerConfirmBtn.addEventListener('click', () => {
+    if (selectedWorkers.length > 0) {
+      document.getElementById('input_worker').value = selectedWorkers.join(',');
+      advanceQuestion();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && currentQIndex === 6) {
+      if (selectedWorkers.length > 0) {
+        document.getElementById('input_worker').value = selectedWorkers.join(',');
+        advanceQuestion();
+      }
+    }
+  });
+
+  document.querySelectorAll('#input_worker_options .t-option').forEach(opt => {
+    opt.addEventListener('click', (e) => {
+      const val = e.target.getAttribute('data-value');
+      if (selectedWorkers.includes(val)) {
+        selectedWorkers = selectedWorkers.filter(v => v !== val);
+        e.target.classList.remove('active-option');
+      } else {
+        selectedWorkers.push(val);
+        e.target.classList.add('active-option');
+      }
+      
+      if (selectedWorkers.length > 0) {
+        workerConfirmBtn.style.display = 'inline-block';
+        setTimeout(() => workerConfirmBtn.style.opacity = '1', 50);
+      } else {
+        workerConfirmBtn.style.opacity = '0';
+        setTimeout(() => workerConfirmBtn.style.display = 'none', 300);
+      }
+    });
+  });
+}
+
+function showNextQuestion() {
+  if (currentQIndex < questions.length) {
+    const qEl = document.getElementById(questions[currentQIndex]);
+    qEl.style.display = 'flex';
+    setTimeout(() => {
+      qEl.style.opacity = '1';
+      const input = qEl.querySelector('input, select');
+      if (input) input.focus();
+      
+      const options = qEl.querySelectorAll('.t-option');
+      options.forEach((opt, idx) => {
+        setTimeout(() => { opt.style.opacity = '1'; opt.style.transform = 'translateY(0)'; }, idx * 80);
+      });
+    }, 50);
+  } else {
+    document.getElementById('p1-title-screen').style.opacity = '0';
+    setTimeout(() => {
+      document.getElementById('p1-title-screen').style.display = 'none';
+      calculateAudit();
+      const choice = document.getElementById('input_worker').value || 'gig_delivery';
+      const choices = choice.split(',');
+      state.workers = appData.workers.personas.filter(p => choices.includes(p.id));
+      if (state.workers.length === 0) {
+         state.workers = [appData.workers.personas[0]];
+      }
+      goToPhase3();
+    }, 800);
+  }
+}
+
+let isAdvancing = false;
+function advanceQuestion() {
+  if (isAdvancing) return;
+  isAdvancing = true;
+  const oldQ = document.getElementById(questions[currentQIndex]);
+  oldQ.style.opacity = '0';
+  setTimeout(() => {
+    oldQ.style.display = 'none';
+    currentQIndex++;
+    isAdvancing = false;
+    showNextQuestion();
+  }, 800);
+}
+
+function calculateAudit() {
+  let yearsInDelhi = parseInt(document.getElementById('input_years').value) || 1;
+  if (yearsInDelhi > 40) yearsInDelhi = 40;
+  let outdoors = parseFloat(document.getElementById('input_outdoors').value) || 0;
+  let commuteHours = parseFloat(document.getElementById('input_commute_time').value) || 0;
+  let homePurifier = document.getElementById('input_home_purifier').value || 'none';
+  let workPurifier = document.getElementById('input_work_purifier').value || 'none';
+  let commuteModeVal = document.getElementById('input_commute').value || 'ac_car';
+  let commuteModeString = 'Personal AC Car';
+  let commuteRatios = appData.constants.commute_ratios;
+  let commuteMult = commuteRatios.ac_car;
+  if(commuteModeVal === 'metro') { commuteModeString = 'Metro / AC Cab'; commuteMult = commuteRatios.metro; }
+  if(commuteModeVal === 'auto') { commuteModeString = 'Auto / Bus / Two-wheeler'; commuteMult = commuteRatios.auto_bus_tw; }
+
+  let totalDepositedUg = 0;
+  let annualShieldCost = appData.shield.purifier_tiers.find(p => p.id === homePurifier)?.annual_cost_inr || 0;
+
+  function getTierKey(tierName) {
+    if(tierName === 'budget') return 'budget_hepa';
+    if(tierName === 'premium') return 'hepa_h13';
+    if(tierName === 'mid') return 'hepa_standard';
+    return 'no_purifier';
+  }
+
+  let indoorRatioHome = appData.constants.indoor_outdoor["indoor_pm25_ratio_" + getTierKey(homePurifier)] || 0.50;
+  let indoorRatioWork = appData.constants.indoor_outdoor["indoor_pm25_ratio_" + getTierKey(workPurifier)] || 0.50;
+  let depFraction = appData.constants.deposition.pm25_fraction;
+
+  let workHours = Math.min(8, Math.max(0, 24 - outdoors - commuteHours));
+  let homeHours = Math.max(0, 24 - outdoors - workHours - commuteHours);
+  let currentYear = 2024;
+  let avgWeightedExposure = 0;
+
+  for (let i = 0; i < yearsInDelhi; i++) {
+    const yrList = appData.pm25.data;
+    let pmData = yrList.find(d => d.year === (currentYear - i)) || yrList[0];
+    const pm25 = pmData.annual_avg;
+
+    let dailyOutUg = (appData.constants.ventilation.rest_rate_lph * outdoors / 1000) * pm25;
+    let pm25IndoorHome = pm25 * indoorRatioHome;
+    let pm25IndoorWork = pm25 * indoorRatioWork;
+    let pm25Commute = pm25 * commuteMult;
+    
+    let dailyHomeUg = (appData.constants.ventilation.rest_rate_lph * homeHours / 1000) * pm25IndoorHome;
+    let dailyWorkUg = (appData.constants.ventilation.rest_rate_lph * workHours / 1000) * pm25IndoorWork;
+    let dailyCommuteUg = (appData.constants.ventilation.rest_rate_lph * commuteHours / 1000) * pm25Commute;
+
+    totalDepositedUg += (dailyOutUg + dailyHomeUg + dailyWorkUg + dailyCommuteUg) * depFraction * 365;
+
+    if (i === 0) {
+      avgWeightedExposure = ((outdoors * pm25) + (homeHours * pm25IndoorHome) + (workHours * pm25IndoorWork) + (commuteHours * pm25Commute)) / 24;
+    }
+  }
+
+  const pm25_2024 = appData.pm25.data.find(d => d.year === 2024).annual_avg;
+  let cigsPerDay = avgWeightedExposure / 22;
+
+  let computedCommutePm25 = pm25_2024 * commuteMult;
+
+  let ansYearsLost = ((avgWeightedExposure - 5) / 10) * 0.98 * (yearsInDelhi / 70);
+
+  state.envParams = {
+    outdoorsTime: outdoors, homeHours: homeHours, workHours: workHours,
+    pm25Outdoor: pm25_2024, pm25Home: pm25_2024 * indoorRatioHome, pm25Work: pm25_2024 * indoorRatioWork,
+    weightedAvg: avgWeightedExposure, cost: annualShieldCost, commuteMode: commuteModeString, commutePm25: computedCommutePm25,
+    yearsInDelhi: yearsInDelhi
+  };
+  state.user.exposureAvg = Number(avgWeightedExposure.toFixed(1));
+  state.user.cigs = cigsPerDay.toFixed(1);
+  state.user.lifeLost = ansYearsLost;
+}
+
+function goToPhase3() {
+  document.getElementById('phase1').classList.remove('active');
+  setTimeout(() => {
+    const p3 = document.getElementById('phase3');
+    p3.style.visibility = 'visible';
+    p3.style.pointerEvents = 'auto';
+    p3.classList.add('active');
+
+    buildReceipt();
+
+    setTimeout(() => {
+      document.getElementById('thread_line').classList.add('draw');
+      document.getElementById('receipt_section').style.opacity = '1';
+
+      setTimeout(() => {
+        const outro = document.querySelector('.receipt-outro');
+        const footer = document.querySelector('.sources-footer');
+        if (outro) outro.style.opacity = '1';
+        if (footer) footer.style.opacity = '1';
+      }, 1400); 
+    }, 800);
+  }, 700);
+}
+
+function getAsciiBar(val, max = 100, chars = 25) {
+  const filled = Math.min(chars, Math.max(0, Math.round((val / max) * chars)));
+  return '█'.repeat(filled) + '▒'.repeat(chars - filled);
+}
+
+function buildReceipt() {
+  const uEnv = state.envParams;
+  const c = document.getElementById('user_receipt_container');
+  c.innerHTML = `
+    <div class="thread" id="thread_line"></div>
+    <div class="receipt-col">
+      <div class="receipt-header">PERSONAL AIR EXPOSURE RECEIPT</div>
+      <div class="receipt-section-title">Daily exposure profile (PM2.5)</div>
+      <div class="receipt-row">
+        <span class="r-title">Home Exposure - ${uEnv.pm25Home.toFixed(1)} µg/m³</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:10px; color:#000;">GOOD</span>
+          <span class="receipt-bar">${getAsciiBar(uEnv.pm25Home)}</span>
+          <span style="font-size:10px; color:#000;">POOR</span>
+        </div>
+      </div>
+      <div class="receipt-row">
+        <span class="r-title">Work Exposure - ${uEnv.pm25Work.toFixed(1)} µg/m³</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:10px; color:#000;">GOOD</span>
+          <span class="receipt-bar">${getAsciiBar(uEnv.pm25Work)}</span>
+          <span style="font-size:10px; color:#000;">POOR</span>
+        </div>
+      </div>
+      <div class="receipt-row">
+        <span class="r-title">Outdoor Exposure - ${uEnv.pm25Outdoor.toFixed(1)} µg/m³</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:10px; color:#000;">GOOD</span>
+          <span class="receipt-bar">${getAsciiBar(uEnv.pm25Outdoor)}</span>
+          <span style="font-size:10px; color:#000;">POOR</span>
+        </div>
+      </div>
+      <div class="receipt-row">
+        <span class="r-title">Commute - ${uEnv.commutePm25.toFixed(1)} µg/m³</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:10px; color:#000;">GOOD</span>
+          <span class="receipt-bar">${getAsciiBar(uEnv.commutePm25)}</span>
+          <span style="font-size:10px; color:#000;">POOR</span>
+        </div>
+      </div>
+      <div class="receipt-row">
+        <span class="r-title">Weighted daily exposure - ${state.user.exposureAvg.toFixed(1)} μg/m³</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:10px; color:#000;">GOOD</span>
+          <span class="receipt-bar">${getAsciiBar(state.user.exposureAvg)}</span>
+          <span style="font-size:10px; color:#000;">POOR</span>
+        </div>
+      </div>
+
+      <div class="receipt-section-title">Cumulative</div>
+      <div class="receipt-row"><span class="r-title">Cigarette equivalent/day</span><span class="r-val">${state.user.cigs}</span></div>
+      <div class="receipt-row"><span class="r-title">Disease risk - low</span></div>
+
+      <div class="receipt-section-title">Final</div>
+      <div class="receipt-row"><span class="r-title">PRIVILEGE RANK</span><span class="r-val" style="color:#8A9E8B;">TOP 12%</span></div>
+
+      <div class="receipt-box-left">
+        You are among a small minority in Delhi who can afford to be less exposed to air pollution. The systems that protect you are out of reach for most.
+      </div>
+    </div>
+  `;
+}
+
+// Thermal Printer Implementation
+function formatThermalReceipt(worker) {
+  const line = () => '-'.repeat(32) + '\n';
+  const pad = (left, right) => {
+    let str = left;
+    let spaces = 32 - left.length - right.length;
+    if (spaces < 1) spaces = 1;
+    return str + ' '.repeat(spaces) + right + '\n';
+  };
+  const center = (text) => {
+    let spaces = Math.max(0, Math.floor((32 - text.length) / 2));
+    return ' '.repeat(spaces) + text + '\n';
+  };
+
+  let out = '';
+  out += center('EXPOSURE BILL - UNPAID') + '\n';
+  out += center(worker.receipt_descriptor) + '\n';
+  out += line();
+  
+  out += 'DAILY EXPOSURE PROFILE OF\n';
+  out += 'THE PERSON WHO:\n';
+  if (worker.id === 'gig_delivery') {
+    out += 'DELIVERS YOUR FOOD & GROCERIES\n';
+  } else if (worker.id === 'house_help') {
+    out += 'HELPS RUN YOUR HOME\n';
+  } else if (worker.id === 'security_guard') {
+    out += 'GUARDS YOUR BUILDING\n';
+  } else if (worker.id === 'street_vendor') {
+    out += 'SELLS YOU THINGS ON THE STREET\n';
+  }
+  out += line();
+  
+  out += center(`Commute - ${worker.commute_pm25_ugm3} ug/m3`) + '\n';
+  out += center(getAsciiBar(worker.commute_pm25_ugm3, 100, 25)) + '\n';
+  if (worker.indoor_pm25_ugm3) {
+    out += center(`Indoor - ${worker.indoor_pm25_ugm3} ug/m3`) + '\n';
+    out += center(getAsciiBar(worker.indoor_pm25_ugm3, 100, 25)) + '\n';
+  }
+  out += center(`Outdoor - ${worker.outdoor_pm25_ugm3} ug/m3`) + '\n';
+  out += center(getAsciiBar(worker.outdoor_pm25_ugm3, 100, 25)) + '\n';
+  if (worker.no2_exhaust_ugm3 !== null) {
+      out += center(`NO2 Exhaust - ${worker.no2_exhaust_ugm3} ug/m3`) + '\n';
+  }
+  out += center(`Total Weighted - ${worker.weighted_daily_exposure_ugm3.toFixed(1)} ug/m3`) + '\n';
+  out += center(getAsciiBar(worker.weighted_daily_exposure_ugm3, 100, 25)) + '\n';
+  out += line();
+
+  out += 'CUMULATIVE TOLL\n';
+  out += pad('Cigarettes/day:', `${worker.cigarette_equivalent_per_day}`);
+  out += pad('Disease Risk:', `Heart Disease`);
+  out += pad('             ', `Lung Cancer`);
+  out += line();
+  
+  out += 'FINAL RANK\n';
+  out += pad('PRIVILEGE:', worker.privilege_rank);
+  out += line();
+  
+  out += '\nBecause they cannot afford\n';
+  out += 'to filter their air, this\n';
+  out += 'worker absorbs the full\n';
+  out += 'toxicity of the city.\n';
+  out += 'Clean air is a luxury good.\n\n\n\n\n\n';
+  
+  return out;
+}
+
+// Commented out hardware thermal printer implementation
+/*
+document.getElementById('print_btn').addEventListener('click', async () => {
+  if (!("serial" in navigator)) {
+     alert("Web Serial API is not fully supported in your browser. Please try Chrome, Edge, or Opera.");
+     return;
+  }
+  try {
+    const port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 9600 });
+    const writer = port.writable.getWriter();
+    const encoder = new TextEncoder();
+    
+    // Format the worker's text based on the 32 char thermal paper width
+    const textStr = formatThermalReceipt(state.worker);
+    
+    await writer.write(encoder.encode(textStr));
+    writer.releaseLock();
+    await port.close();
+    
+    // Show the congratulations message on-screen!
+    const printMessage = document.getElementById('print_message');
+    printMessage.innerHTML = "You are exposed to higher pollution levels due to limited access to protective infrastructure.";
+    printMessage.style.color = "red";
+    printMessage.style.borderLeftColor = "red";
+    printMessage.classList.add('show');
+    
+  } catch (err) {
+    console.error("Printer connection failed:", err);
+    // Even if it failed, for testing purposes, we can uncomment the below
+    // to show the message. But generally, only show if it succeeded.
+    // const printMessage = document.getElementById('print_message');
+    // printMessage.innerHTML = "You are exposed to higher pollution levels due to limited access to protective infrastructure.";
+    // printMessage.style.color = "red";
+    // printMessage.style.borderLeftColor = "red";
+    // printMessage.classList.add('show');
+    alert("Connection to printer failed or was cancelled.");
+  }
+});
+*/
+
+// Download as PNG implementation with matching UI elements
+document.getElementById('print_btn').addEventListener('click', async () => {
+  for (let i = 0; i < state.workers.length; i++) {
+    const worker = state.workers[i];
+    
+    const canvas = document.createElement('canvas');
+    // 4x6 portrait print ratio (101.6mm x 152.4mm / ~254 DPI)
+    canvas.width = 1016; 
+    canvas.height = 1524;
+    const ctx = canvas.getContext('2d');
+    
+    // Background
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // UI Layout Borders simulating .receipt-col
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 10;
+    ctx.strokeRect(32, 32, canvas.width - 64, canvas.height - 64);
+    ctx.lineWidth = 4;
+    ctx.strokeRect(48, 48, canvas.width - 96, canvas.height - 96);
+    
+    let yOffset = 140;
+    const leftX = 96;
+    
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    
+    // Header (.receipt-header)
+    ctx.fillStyle = '#000000';
+    ctx.font = '28px monospace';
+    ctx.fillText('EXPOSURE BILL - UNPAID', leftX, yOffset);
+    yOffset += 40;
+    ctx.fillText((worker.receipt_descriptor || '').toUpperCase(), leftX, yOffset);
+    yOffset += 48;
+    
+    ctx.beginPath();
+    ctx.moveTo(96, yOffset);
+    ctx.lineTo(canvas.width - 96, yOffset);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    yOffset += 48;
+    
+    function drawSectionTitle(title) {
+      ctx.font = 'normal 30px "Space Grotesk", sans-serif';
+      ctx.fillStyle = '#000000';
+      ctx.letterSpacing = '3px';
+      ctx.fillText(title.toUpperCase(), leftX, yOffset);
+      ctx.letterSpacing = '0px';
+      yOffset += 56;
+    }
+    
+    function drawRow(titleWithVal, valExtra, barStr, isFinal) {
+      ctx.font = '33px "Space Grotesk", sans-serif';
+      ctx.fillStyle = '#555555';
+      ctx.fillText(titleWithVal, leftX, yOffset);
+      yOffset += 40;
+      
+      if (valExtra) {
+        ctx.fillStyle = isFinal ? '#8F6B6B' : '#000000';
+        ctx.fillText(valExtra, leftX, yOffset);
+        yOffset += 40;
+      }
+      
+      if (barStr) {
+        ctx.font = '24px "Space Grotesk", sans-serif';
+        ctx.fillStyle = '#000000';
+        ctx.fillText('GOOD', leftX, yOffset + 4);
+        
+        let goodWidth = ctx.measureText('GOOD').width;
+        let pad = 12;
+        let barX = leftX + goodWidth + pad;
+
+        ctx.font = '30px "Courier New", Consolas, monospace';
+        ctx.letterSpacing = '6px';
+        
+        ctx.save();
+        ctx.beginPath();
+        // Clip to create the thin bar appearance
+        ctx.rect(barX, yOffset, canvas.width, 16); 
+        ctx.clip();
+        ctx.fillText(barStr, barX, yOffset);
+        ctx.restore();
+        
+        let barWidth = ctx.measureText(barStr).width;
+        let poorX = barX + barWidth + pad;
+        
+        ctx.font = '24px "Space Grotesk", sans-serif';
+        ctx.letterSpacing = '0px';
+        ctx.fillText('POOR', poorX, yOffset + 4);
+
+        yOffset += 16 + 24; 
+      }
+      yOffset += 12;
+    }
+    
+    // Category 1
+    drawSectionTitle('Daily exposure profile (PM2.5)');
+    drawRow(`Commute - ${worker.commute_pm25_ugm3} µg/m³`, null, getAsciiBar(worker.commute_pm25_ugm3));
+    if (worker.indoor_pm25_ugm3) {
+      drawRow(`Indoor - ${worker.indoor_pm25_ugm3} µg/m³`, null, getAsciiBar(worker.indoor_pm25_ugm3));
+    }
+    drawRow(`Outdoor - ${worker.outdoor_pm25_ugm3} µg/m³`, null, getAsciiBar(worker.outdoor_pm25_ugm3));
+    if (worker.no2_exhaust_ugm3 !== null) {
+      drawRow(`NO2 Exhaust - ${worker.no2_exhaust_ugm3} µg/m³`, null, null);
+    }
+    drawRow(`Weighted daily exposure - ${worker.weighted_daily_exposure_ugm3.toFixed(1)} µg/m³`, null, getAsciiBar(worker.weighted_daily_exposure_ugm3));
+    
+    yOffset += 24;
+    
+    // Category 2
+    drawSectionTitle('Cumulative');
+    drawRow('Cigarette equivalent/day', `${worker.cigarette_equivalent_per_day}`, null);
+    const risks = [];
+    if(worker.disease_heart_pct) risks.push(`Heart Disease`);
+    if(worker.disease_lung_cancer_pct) risks.push(`Lung Cancer`);
+    drawRow('Elevated disease risk', risks.join(', '), null);
+    
+    yOffset += 24;
+    
+    // Category 3
+    drawSectionTitle('Final');
+    drawRow('PRIVILEGE RANK', worker.privilege_rank, null, true);
+    
+    // Conclusion Box (.receipt-box-right)
+    yOffset += 32;
+    const boxMargin = 96;
+    const boxPad = 48;
+    const boxText = "Because they cannot afford to filter their air, this worker absorbs the full toxicity of the city. Clean air is a luxury good.";
+    
+    // Wrap
+    const words = boxText.split(' ');
+    let line = '';
+    const linesArr = [];
+    ctx.font = '33px "Space Grotesk", sans-serif';
+    for(let n = 0; n < words.length; n++) {
+      let testLine = line + words[n] + ' ';
+      let metrics = ctx.measureText(testLine);
+      if (metrics.width > (canvas.width - boxMargin*2 - boxPad*2) && n > 0) {
+        linesArr.push(line);
+        line = words[n] + ' ';
+      } else {
+        line = testLine;
+      }
+    }
+    linesArr.push(line);
+    
+    ctx.fillStyle = '#000000';
+    let ty = yOffset + boxPad;
+    linesArr.forEach(l => {
+      ctx.fillText(l.trim(), leftX, ty);
+      ty += 48;
+    });
+    
+    const link = document.createElement('a');
+    link.download = `Receipt download/exposure_receipt_${worker.id}_${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    await new Promise(r => setTimeout(r, 600)); // Delay between downloads
+  }
+
+  
+  // Show the brutalist congratulations message on-screen
+  const printMessage = document.getElementById('print_message');
+  printMessage.innerHTML = "Thank you for your contribution. This person's lungs have been charged accordingly.";
+  printMessage.style.color = "red";
+  printMessage.style.borderLeftColor = "red";
+  printMessage.classList.add('show');
+});
+
+// Kickoff
+init();
+
+</script>
+</body>
+</html>
+

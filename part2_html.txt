@@ -1,0 +1,91 @@
+  <!-- PHASE 1: The Audit -->
+  <div id="phase1" class="viewport-page active">
+    
+    <!-- Title Screen -->
+    <div id="p1-title" class="content">
+    <!-- Title & Input Sequence -->
+    <div id="p1-title-screen" class="content" style="max-width: 1200px;">
+      <div class='t-opening' style='margin-bottom: 24px; color: var(--text-primary); text-align: center;'>Air Pollution Privilege Experience</div>
+      <div class='t-body' style='text-align: center; margin-bottom: 48px;'>Answer the questions to continue.</div>
+
+      <div id="q_years" class="q-container" style="opacity:0; display:none; transition: opacity 800ms;">
+        <label class="q-label">How many years have you lived in Delhi?</label>
+        <input type="number" id="input_years" class="minimal-input" min="1" max="50" placeholder="Type and press ↵">
+      </div>
+
+      <div id="q_outdoors" class="q-container" style="opacity:0; display:none; transition: opacity 800ms;">
+        <label class="q-label">How many hours a day do you spend outdoors?</label>
+        <input type="number" id="input_outdoors" class="minimal-input" min="0" max="24" step="0.5" placeholder="Type and press ↵">
+      </div>
+
+      <div id="q_purifier" class="q-container" style="opacity:0; display:none; transition: opacity 800ms;">
+        <label class="q-label">What is the primary air filtration in your home?</label>
+        <div class="styled-options" id="input_home_purifier_options">
+          <div class="t-option" data-value="none">No air purifier</div>
+          <div class="t-option" data-value="budget">Budget purifier</div>
+          <div class="t-option" data-value="mid">Mid-range purifier</div>
+          <div class="t-option" data-value="premium">Premium purifier</div>
+        </div>
+        <input type="hidden" id="input_home_purifier" value="">
+      </div>
+
+      <div id="q_work_purifier" class="q-container" style="opacity:0; display:none; transition: opacity 800ms;">
+        <label class="q-label">What is the primary air filtration in your workspace?</label>
+        <div class="styled-options" id="input_work_purifier_options">
+          <div class="t-option" data-value="none">No filtration</div>
+          <div class="t-option" data-value="budget">Basic purifiers</div>
+          <div class="t-option" data-value="mid">Central air / Mid-range purifiers</div>
+          <div class="t-option" data-value="premium">Sealed premium HEPA</div>
+        </div>
+        <input type="hidden" id="input_work_purifier" value="">
+      </div>
+
+      <div id="q_commute" class="q-container" style="opacity:0; display:none; transition: opacity 800ms;">
+        <label class="q-label">How do you generally commute?</label>
+        <div class="styled-options" id="input_commute_options">
+          <div class="t-option" data-value="ac_car">Personal AC Car</div>
+          <div class="t-option" data-value="metro">Metro / AC Cab</div>
+          <div class="t-option" data-value="auto">Auto / Bus / Two-wheeler</div>
+        </div>
+        <input type="hidden" id="input_commute" value="">
+      </div>
+
+      <div id="q_worker" class="q-container" style="opacity:0; display:none; transition: opacity 800ms;">
+        <label class="q-label">Who in your daily life is most present to you?</label>
+        <div class="styled-options" id="input_worker_options">
+          <div class="t-option" data-value="gig_delivery">The person who delivers your food and groceries</div>
+          <div class="t-option" data-value="house_help">The person who helps run your home</div>
+          <div class="t-option" data-value="security_guard">The person who guards your building</div>
+          <div class="t-option" data-value="street_vendor">The person who sells you things on the street</div>
+        </div>
+        <input type="hidden" id="input_worker" value="">
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- PHASE 3: The Receipt -->
+  <div id="phase3" class="viewport-page" style="display: block; visibility: hidden; pointer-events: none; overflow-y: auto;">
+    <div style="max-width: 1400px; margin: 0 auto; width: 100%;"></div>
+
+    <!-- The Receipt -->
+    <div class="receipt-wrapper" id="receipt_section" style="opacity:0; transition: opacity 800ms;">
+      <div class="receipt-grid" id="receipt_grid">
+        <!-- Content injected by JS -->
+      </div>
+      
+      <div class="receipt-outro">
+        Clean air was not distributed. It was purchased.
+      </div>
+      
+      <div class="sources-footer">
+        — CPCB / DPCC — historical PM2.5 data<br>
+        — AQLI, University of Chicago EPIC — life expectancy loss<br>
+        — Burnett et al. (2014), Environ Health Perspect — disease risk<br>
+        — SAFAR, IITM — PM2.5 composition, NO₂ data<br>
+        — Fairwork India 2024 — worker income and conditions
+      </div>
+    </div>
+  </div>
+
+<script>

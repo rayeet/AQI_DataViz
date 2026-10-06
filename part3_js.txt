@@ -1,0 +1,292 @@
+let appData = {
+  constants: {
+    "ventilation": { "rest_rate_lph": 550, "walking_rate_lph": 900, "cycling_rate_lph": 2400 },
+    "deposition": { "pm25_fraction": 0.27 },
+    "indoor_outdoor": { "indoor_pm25_ratio_no_purifier": 0.50, "indoor_pm25_ratio_hepa_h13": 0.005, "indoor_pm25_ratio_hepa_standard": 0.03, "indoor_pm25_ratio_budget_hepa": 0.10 },
+    "equivalents": { "cigarette_pm25_mg": 12 }
+  },
+  pm25: {
+    "data": [
+      { "year": 2010, "annual_avg": 122 }, { "year": 2011, "annual_avg": 128 }, { "year": 2012, "annual_avg": 131 },
+      { "year": 2013, "annual_avg": 135 }, { "year": 2014, "annual_avg": 139 }, { "year": 2015, "annual_avg": 143 },
+      { "year": 2016, "annual_avg": 136 }, { "year": 2017, "annual_avg": 141 }, { "year": 2018, "annual_avg": 113 },
+      { "year": 2019, "annual_avg": 107 }, { "year": 2020, "annual_avg": 92 }, { "year": 2021, "annual_avg": 108 },
+      { "year": 2022, "annual_avg": 112 }, { "year": 2023, "annual_avg": 109 }, { "year": 2024, "annual_avg": 106 }
+    ]
+  },
+  shield: {
+    "purifier_tiers": [
+      { "id": "budget", "annual_cost_inr": 9000 },
+      { "id": "mid", "annual_cost_inr": 18000 },
+      { "id": "premium", "annual_cost_inr": 52000 }
+    ]
+  },
+  workers: {
+    "personas": [
+      {
+        "id": "gig_delivery",
+        "label": "Gig delivery worker",
+        "receipt_descriptor": "Swiggy / Zomato rider",
+        "commute_pm25_ugm3": 148,
+        "no2_exhaust_ugm3": 92,
+        "indoor_pm25_ugm3": 74,
+        "outdoor_pm25_ugm3": 148,
+        "weighted_daily_exposure_ugm3": 98.4,
+        "cigarette_equivalent_per_day": 4.5,
+        "life_expectancy_loss_years": 12.6,
+        "monthly_income_inr": 18000,
+        "health_insurance": "None",
+        "disease_heart_pct": 27, "disease_stroke_pct": 26, "disease_copd_pct": 24, "disease_lung_cancer_pct": 20,
+        "privilege_rank": "BOTTOM 18%"
+      },
+      {
+        "id": "house_help",
+        "label": "House help",
+        "receipt_descriptor": "Domestic / household worker",
+        "commute_pm25_ugm3": 106,
+        "no2_exhaust_ugm3": null,
+        "indoor_pm25_ugm3": 89,
+        "outdoor_pm25_ugm3": 106,
+        "weighted_daily_exposure_ugm3": 82.1,
+        "cigarette_equivalent_per_day": 3.7,
+        "life_expectancy_loss_years": 10.8,
+        "monthly_income_inr": 12000,
+        "health_insurance": "None",
+        "disease_heart_pct": 25, "disease_stroke_pct": 25, "disease_copd_pct": 22, "disease_lung_cancer_pct": 18,
+        "privilege_rank": "BOTTOM 22%"
+      },
+      {
+        "id": "security_guard",
+        "label": "Security guard",
+        "receipt_descriptor": "Residential / commercial guard",
+        "commute_pm25_ugm3": 112,
+        "no2_exhaust_ugm3": null,
+        "indoor_pm25_ugm3": 95,
+        "outdoor_pm25_ugm3": 112,
+        "weighted_daily_exposure_ugm3": 103.6,
+        "cigarette_equivalent_per_day": 4.7,
+        "life_expectancy_loss_years": 11.2,
+        "monthly_income_inr": 14000,
+        "health_insurance": "Basic ESIC",
+        "disease_heart_pct": 28, "disease_stroke_pct": 27, "disease_copd_pct": 25, "disease_lung_cancer_pct": 21,
+        "privilege_rank": "BOTTOM 20%"
+      },
+      {
+        "id": "street_vendor",
+        "label": "Street vendor",
+        "receipt_descriptor": "Roadside / market vendor",
+        "commute_pm25_ugm3": 138,
+        "no2_exhaust_ugm3": 78,
+        "indoor_pm25_ugm3": null,
+        "outdoor_pm25_ugm3": 138,
+        "weighted_daily_exposure_ugm3": 126.4,
+        "cigarette_equivalent_per_day": 5.7,
+        "life_expectancy_loss_years": 13.1,
+        "monthly_income_inr": 9000,
+        "health_insurance": "None",
+        "disease_heart_pct": 32, "disease_stroke_pct": 31, "disease_copd_pct": 28, "disease_lung_cancer_pct": 24,
+        "privilege_rank": "BOTTOM 25%"
+      }
+    ]
+  }
+};
+
+let state = {
+  user: { cost: 0, pmInhaled: 0, cigs: 0, lifeLost: 0 },
+  worker: null,
+  workerStats: null
+};
+
+// Start logic immediately since JSON is in-line!
+startPhase1();
+
+const questions = ['q_years', 'q_outdoors', 'q_purifier', 'q_work_purifier', 'q_commute', 'q_worker'];
+let currentQIndex = 0;
+
+function startPhase1() {
+  setTimeout(() => showNextQuestion(), 100);
+
+  function handleEnter(e) {
+    if((e.key === 'Enter' || e.keyCode === 13) && e.target.value) {
+      e.target.blur(); advanceQuestion();
+    }
+  }
+
+  document.getElementById('input_years').addEventListener('keydown', handleEnter);
+  document.getElementById('input_outdoors').addEventListener('keydown', handleEnter);
+  
+  document.getElementById('input_years').addEventListener('blur', (e) => { if (e.target.value && currentQIndex === 0) advanceQuestion(); });
+  document.getElementById('input_outdoors').addEventListener('blur', (e) => { if (e.target.value && currentQIndex === 1) advanceQuestion(); });
+
+  ['input_home_purifier_options', 'input_work_purifier_options', 'input_commute_options', 'input_worker_options'].forEach(optId => {
+    document.querySelectorAll(`#${optId} .t-option`).forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        document.getElementById(optId.replace('_options', '')).value = e.target.getAttribute('data-value');
+        advanceQuestion();
+      });
+    });
+  });
+}
+
+function showNextQuestion() {
+  if (currentQIndex < questions.length) {
+    const qEl = document.getElementById(questions[currentQIndex]);
+    qEl.style.display = 'flex';
+    setTimeout(() => {
+      qEl.style.opacity = '1';
+      const input = qEl.querySelector('input, select');
+      if (input) input.focus();
+      
+      qEl.querySelectorAll('.t-option').forEach((opt, idx) => {
+        setTimeout(() => { opt.style.opacity = '1'; opt.style.transform = 'translateY(0)'; }, idx * 80);
+      });
+    }, 50);
+  } else {
+    document.getElementById('p1-title-screen').style.opacity = '0';
+    setTimeout(() => {
+      document.getElementById('p1-title-screen').style.display = 'none';
+      calculateAudit();
+      const choice = document.getElementById('input_worker').value || 'gig_delivery';
+      state.worker = appData.workers.personas.find(p => p.id === choice) || appData.workers.personas[1];
+      goToPhase3();
+    }, 800);
+  }
+}
+
+let isAdvancing = false;
+function advanceQuestion() {
+  if (isAdvancing) return;
+  isAdvancing = true;
+  const oldQ = document.getElementById(questions[currentQIndex]);
+  oldQ.style.opacity = '0';
+  setTimeout(() => {
+    oldQ.style.display = 'none';
+    currentQIndex++;
+    isAdvancing = false;
+    showNextQuestion();
+  }, 800);
+}
+
+function calculateAudit() {
+  let yearsInDelhi = parseInt(document.getElementById('input_years').value) || 1;
+  let outdoors = parseFloat(document.getElementById('input_outdoors').value) || 0;
+  let homePurifier = document.getElementById('input_home_purifier').value || 'none';
+  let workPurifier = document.getElementById('input_work_purifier').value || 'none';
+  let commuteModeVal = document.getElementById('input_commute').value || 'ac_car';
+  
+  let commuteModeString = commuteModeVal === 'metro' ? 'Metro / AC Cab' : commuteModeVal === 'auto' ? 'Auto / Bus / Two-wheeler' : 'Personal AC Car';
+
+  let annualShieldCost = appData.shield.purifier_tiers.find(p => p.id === homePurifier)?.annual_cost_inr || 0;
+
+  function getTierKey(tierName) {
+    if(tierName === 'budget') return 'budget_hepa';
+    if(tierName === 'premium') return 'hepa_h13';
+    if(tierName === 'mid') return 'hepa_standard';
+    return 'no_purifier';
+  }
+
+  let indoorRatioHome = appData.constants.indoor_outdoor["indoor_pm25_ratio_" + getTierKey(homePurifier)] || 0.50;
+  let indoorRatioWork = appData.constants.indoor_outdoor["indoor_pm25_ratio_" + getTierKey(workPurifier)] || 0.50;
+  let depFraction = appData.constants.deposition.pm25_fraction;
+
+  let workHours = Math.min(8, Math.max(0, 24 - outdoors));
+  let homeHours = Math.max(0, 24 - outdoors - workHours);
+  let totalDepositedUg = 0;
+  let avgWeightedExposure = 0;
+
+  for (let i = 0; i < yearsInDelhi; i++) {
+    const yrList = appData.pm25.data;
+    let pmData = yrList.find(d => d.year === (2024 - i)) || yrList[0];
+    const pm25 = pmData.annual_avg;
+
+    let dailyOutUg = (appData.constants.ventilation.rest_rate_lph * outdoors / 1000) * pm25;
+    let pm25IndoorHome = pm25 * indoorRatioHome;
+    let pm25IndoorWork = pm25 * indoorRatioWork;
+    
+    let dailyHomeUg = (appData.constants.ventilation.rest_rate_lph * homeHours / 1000) * pm25IndoorHome;
+    let dailyWorkUg = (appData.constants.ventilation.rest_rate_lph * workHours / 1000) * pm25IndoorWork;
+
+    totalDepositedUg += (dailyOutUg + dailyHomeUg + dailyWorkUg) * depFraction * 365;
+
+    if (i === 0) {
+      avgWeightedExposure = ((outdoors * pm25) + (homeHours * pm25IndoorHome) + (workHours * pm25IndoorWork)) / 24;
+    }
+  }
+
+  const pm25_2024 = appData.pm25.data.find(d => d.year === 2024).annual_avg;
+  let cigsPerDay = avgWeightedExposure / 22;
+
+  let computedCommutePm25 = pm25_2024;
+  if(commuteModeVal === 'ac_car') computedCommutePm25 = pm25_2024 * 0.25;
+  if(commuteModeVal === 'metro') computedCommutePm25 = pm25_2024 * 0.5;
+  if(commuteModeVal === 'auto') computedCommutePm25 = pm25_2024 * 1.2;
+
+  state.envParams = {
+    outdoorsTime: outdoors, homeHours: homeHours, workHours: workHours,
+    pm25Outdoor: pm25_2024, pm25Home: pm25_2024 * indoorRatioHome, pm25Work: pm25_2024 * indoorRatioWork,
+    weightedAvg: avgWeightedExposure, cost: annualShieldCost, commuteMode: commuteModeString, commutePm25: computedCommutePm25
+  };
+  state.user.exposureAvg = Number(avgWeightedExposure.toFixed(1));
+  state.user.cigs = cigsPerDay.toFixed(1);
+}
+
+function goToPhase3() {
+  document.getElementById('phase1').classList.remove('active');
+  setTimeout(() => {
+    const p3 = document.getElementById('phase3');
+    p3.style.visibility = 'visible';
+    p3.style.pointerEvents = 'auto';
+    p3.classList.add('active');
+    updateWorkerStats();
+    setTimeout(() => {
+      document.getElementById('thread_line').classList.add('draw');
+      document.getElementById('receipt_section').style.opacity = '1';
+      setTimeout(() => {
+        document.querySelector('.receipt-outro').style.opacity = '1';
+        document.querySelector('.sources-footer').style.opacity = '1';
+      }, 1400);
+    }, 800);
+  }, 700);
+}
+
+function updateWorkerStats() { buildReceipt(); }
+
+function buildReceipt() {
+  const uEnv = state.envParams;
+  const c = document.getElementById('receipt_grid');
+  c.innerHTML = `
+    <div class="thread" id="thread_line"></div>
+    <div class="receipt-col">
+      <div class="receipt-header">PERSONAL AIR EXPOSURE RECEIPT</div>
+      <div class="receipt-section-title">Daily exposure profile (PM2.5)</div>
+      <div class="receipt-row"><span class="r-title">Home Exposure</span><span class="r-val">${uEnv.pm25Home.toFixed(1)} µg/m³</span></div>
+      <div class="receipt-row"><span class="r-title">Work Exposure</span><span class="r-val">${uEnv.pm25Work.toFixed(1)} µg/m³</span></div>
+      <div class="receipt-row"><span class="r-title">Outdoor Exposure</span><span class="r-val">${uEnv.pm25Outdoor.toFixed(1)} µg/m³</span></div>
+      <div class="receipt-row"><span class="r-title">Commute</span><span class="r-val">${uEnv.commutePm25.toFixed(1)} µg/m³</span></div>
+      <div class="receipt-row"><span class="r-title">Weighted daily exposure</span><span class="r-val">${state.user.exposureAvg.toFixed(1)} μg/m³</span></div>
+      <div class="receipt-section-title">Cumulative</div>
+      <div class="receipt-row"><span class="r-title">Cigarette equivalent/day</span><span class="r-val">${state.user.cigs}</span></div>
+      <div class="receipt-row"><span class="r-title">Est. life expectancy loss</span><span class="r-val">8.2 yr</span></div>
+      <div class="receipt-section-title">Final</div>
+      <div class="receipt-row"><span class="r-title">PRIVILEGE RANK</span><span class="r-val" style="color:#8A9E8B;">TOP [X]%</span></div>
+      <div class="receipt-box-left">You are among the small minority of Delhi residents who can afford to filter their air.</div>
+    </div>
+    <div class="receipt-col">
+      <div class="receipt-header">EXPOSURE BILL — UNPAID<br><span style="color:#666666; font-size:10px; padding-top:4px; display:inline-block;">${state.worker.receipt_descriptor}</span></div>
+      <div class="receipt-section-title">Daily exposure profile (PM2.5)</div>
+      <div class="receipt-row"><span class="r-title">Commute</span><span class="r-val">${state.worker.commute_pm25_ugm3} μg/m³</span></div>
+      ${state.worker.indoor_pm25_ugm3 ? `<div class="receipt-row"><span class="r-title">Indoor</span><span class="r-val">${state.worker.indoor_pm25_ugm3} μg/m³</span></div>` : ''}
+      <div class="receipt-row"><span class="r-title">Outdoor</span><span class="r-val">${state.worker.outdoor_pm25_ugm3} μg/m³</span></div>
+      <div class="receipt-row"><span class="r-title">Weighted daily exposure</span><span class="r-val">${state.worker.weighted_daily_exposure_ugm3.toFixed(1)} μg/m³</span></div>
+      <div class="receipt-section-title">Cumulative</div>
+      <div class="receipt-row"><span class="r-title">Cigarette equivalent/day</span><span class="r-val">${state.worker.cigarette_equivalent_per_day}</span></div>
+      <div class="receipt-row"><span class="r-title">Est. life expectancy loss</span><span class="r-val">${state.worker.life_expectancy_loss_years} yr</span></div>
+      <div class="receipt-section-title">Final</div>
+      <div class="receipt-row"><span class="r-title">PRIVILEGE RANK</span><span class="r-val" style="color:#C4856A;">${state.worker.privilege_rank}</span></div>
+      <div class="receipt-box-right">Because they cannot afford to filter their air, ${state.worker.receipt_descriptor.toLowerCase()}s absorb the full toxicity of the city. Clean air is now a luxury good.</div>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>
